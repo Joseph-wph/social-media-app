@@ -3,11 +3,14 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Bookmark, Heart, MessageCircle, Send } from 'lucide-react';
 
 import PostAvatar from '@/components/post/postAvatar';
 import { useToggleSavePost } from '@/hooks/useToggleSavePost';
 import { useToggleLikePost } from '@/hooks/useToggleLikePost';
+import { useAuthStore } from '@/store/authStore';
+
 import type { Post } from '@/types';
 
 type PostCardProps = {
@@ -25,26 +28,39 @@ export default function PostCard({
   userId,
   onOpenComments,
 }: PostCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const { likePost, unlikePost, isLiking, isUnliking } = useToggleLikePost();
+  const router = useRouter();
+  const token = useAuthStore((state) => state.token);
+  const isLoggedIn = Boolean(token);
 
-  const isLikePending = isLiking || isUnliking;
-  const isLiked = post.likedByMe;
+  const [isExpanded, setIsExpanded] = useState(false);
   const [saveError, setSaveError] = useState('');
+
+  const { likePost, unlikePost, isLiking, isUnliking } = useToggleLikePost();
 
   const { savePost, unsavePost, isSaving, isUnsaving } = useToggleSavePost();
 
+  const isLikePending = isLiking || isUnliking;
   const isSavePending = isSaving || isUnsaving;
-  const captionThreshold = 80;
+  const isLiked = post.likedByMe;
 
+  const captionThreshold = 80;
   const caption = post.caption ?? '';
   const isCaptionLong = caption.length > captionThreshold;
 
   const authorName = post.author.name || post.author.username;
   const profileHref = `/profile/${encodeURIComponent(post.author.username)}`;
 
+  function requireLogin() {
+    if (!isLoggedIn) {
+      router.push('/login');
+      return false;
+    }
+
+    return true;
+  }
+
   async function handleSaveToggle() {
-    if (!userId || isSavePending || isSavedStatusPending) {
+    if (!requireLogin() || !userId || isSavePending || isSavedStatusPending) {
       return;
     }
 
@@ -66,7 +82,7 @@ export default function PostCard({
   }
 
   async function handleLikeToggle() {
-    if (!userId || isLikePending) {
+    if (!requireLogin() || !userId || isLikePending) {
       return;
     }
 
@@ -79,6 +95,14 @@ export default function PostCard({
     } catch (error) {
       console.error('Failed to toggle like:', error);
     }
+  }
+
+  function handleOpenComments() {
+    if (!requireLogin()) {
+      return;
+    }
+
+    onOpenComments();
   }
 
   return (
@@ -127,10 +151,11 @@ export default function PostCard({
           <button
             type='button'
             onClick={handleLikeToggle}
-            disabled={!userId || isLikePending}
+            disabled={isLoggedIn && (!userId || isLikePending)}
             className='flex items-center gap-1.5 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-50'
             aria-label={isLiked ? 'Unlike post' : 'Like post'}
-            aria-pressed={isLiked}
+            aria-pressed={isLoggedIn ? isLiked : undefined}
+            title={!isLoggedIn ? 'Log in to like this post' : undefined}
           >
             <Heart
               size={18}
@@ -141,9 +166,10 @@ export default function PostCard({
 
           <button
             type='button'
-            onClick={onOpenComments}
+            onClick={handleOpenComments}
             className='flex items-center gap-1.5 transition hover:text-white'
             aria-label='View comments'
+            title={!isLoggedIn ? 'Log in to view comments' : undefined}
           >
             <MessageCircle size={18} />
             <span>{post.commentCount}</span>
@@ -151,8 +177,26 @@ export default function PostCard({
 
           <button
             type='button'
+            onClick={() => {
+              if (!requireLogin()) {
+                return;
+              }
+
+              if (navigator.share) {
+                void navigator
+                  .share({
+                    title: `${authorName} on Sociality`,
+                    text: caption,
+                    url: window.location.href,
+                  })
+                  .catch(() => {
+                    // User cancelled sharing or sharing is unavailable.
+                  });
+              }
+            }}
             aria-label='Share post'
             className='flex items-center gap-1.5 transition hover:text-white'
+            title={!isLoggedIn ? 'Log in to share this post' : undefined}
           >
             <Send size={16} />
           </button>
@@ -161,10 +205,13 @@ export default function PostCard({
         <button
           type='button'
           onClick={handleSaveToggle}
-          disabled={!userId || isSavePending || isSavedStatusPending}
+          disabled={
+            isLoggedIn && (!userId || isSavePending || isSavedStatusPending)
+          }
           className='text-white/80 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-50'
           aria-label={isSaved ? 'Unsave post' : 'Save post'}
-          aria-pressed={isSaved}
+          aria-pressed={isLoggedIn ? isSaved : undefined}
+          title={!isLoggedIn ? 'Log in to save this post' : undefined}
         >
           <Bookmark
             size={18}

@@ -8,7 +8,7 @@ import { useSavedPosts } from '@/hooks/useSavedPosts';
 import { useAuthStore } from '@/store/authStore';
 
 import PostCard from '@/components/post/postCard';
-import CommentModal from '@/components/post/commentModal';
+import PostDetailModal from '@/components/post/postDetailModal';
 
 import type { Post } from '@/types';
 
@@ -95,10 +95,8 @@ export default function ExplorePage() {
       </div>
 
       {selectedPost && (
-        <CommentModal
-          key={selectedPost.id}
-          post={selectedPost}
-          userId={userId}
+        <PostDetailModal
+          postId={selectedPost.id}
           onClose={() => setSelectedPost(null)}
         />
       )}
