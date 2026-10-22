@@ -1,69 +1,169 @@
-import Image from "next/image";
+'use client';
+
+import Link from 'next/link';
+import { Heart, MessageCircle, RefreshCw } from 'lucide-react';
+
+import Navbar from '@/components/layout/navbar';
+import { useFeed } from '@/hooks/useFeed';
+import { useAuthStore } from '@/store/authStore';
 
 export default function Home() {
+  const token = useAuthStore((state) => state.token);
+  const { data, isPending, isError, refetch } = useFeed();
+
+  const posts = data?.data.items ?? [];
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
+    <main className='min-h-screen bg-black text-[#F6F9FE]'>
+      <Navbar />
+
+      <section className='mx-auto w-full max-w-2xl px-4 py-8 sm:py-10'>
+        <div className='mb-8'>
+          <h1 className='text-2xl font-bold tracking-tight sm:text-3xl'>
+            Home
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className='mt-2 text-sm text-white/60'>
+            Connect, share, and discover with your community.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+
+        {!token ? (
+          <div className='rounded-2xl border border-white/10 bg-white/3 px-6 py-12 text-center'>
+            <h2 className='text-lg font-semibold'>Welcome to Sociality</h2>
+
+            <p className='mx-auto mt-3 max-w-sm text-sm leading-6 text-white/60'>
+              Sign in to see your feed and connect with your community.
+            </p>
+
+            <div className='mt-6 flex justify-center gap-3'>
+              <Link
+                href='/login'
+                className='rounded-full bg-[#6936F2] px-5 py-2.5 text-sm font-semibold transition hover:bg-[#7F51F9]'
+              >
+                Log in
+              </Link>
+
+              <Link
+                href='/register'
+                className='rounded-full border border-white/15 px-5 py-2.5 text-sm font-semibold transition hover:bg-white/10'
+              >
+                Create account
+              </Link>
+            </div>
+          </div>
+        ) : isPending ? (
+          <div className='space-y-4' aria-live='polite'>
+            {[1, 2].map((item) => (
+              <div
+                key={item}
+                className='animate-pulse rounded-2xl border border-white/10 p-4'
+              >
+                <div className='flex items-center gap-3'>
+                  <div className='size-10 rounded-full bg-white/10' />
+                  <div className='space-y-2'>
+                    <div className='h-3 w-28 rounded bg-white/10' />
+                    <div className='h-3 w-20 rounded bg-white/10' />
+                  </div>
+                </div>
+
+                <div className='mt-4 aspect-square rounded-xl bg-white/10' />
+                <div className='mt-4 h-3 w-3/4 rounded bg-white/10' />
+              </div>
+            ))}
+          </div>
+        ) : isError ? (
+          <div
+            className='rounded-2xl border border-red-400/20 bg-red-400/5 px-6 py-10 text-center'
+            role='alert'
           >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+            <h2 className='text-lg font-semibold'>Unable to load your feed</h2>
+
+            <p className='mt-2 text-sm text-white/60'>
+              Something went wrong while loading posts. Please try again.
+            </p>
+
+            <button
+              type='button'
+              onClick={() => refetch()}
+              className='mt-5 inline-flex items-center gap-2 rounded-full bg-[#6936F2] px-5 py-2.5 text-sm font-semibold transition hover:bg-[#7F51F9]'
+            >
+              <RefreshCw size={16} />
+              Try again
+            </button>
+          </div>
+        ) : posts.length === 0 ? (
+          <div className='rounded-2xl border border-white/10 bg-white/3 px-6 py-12 text-center'>
+            <div className='mx-auto flex size-14 items-center justify-center rounded-full bg-white/6'>
+              <MessageCircle size={26} className='text-white/60' />
+            </div>
+
+            <h2 className='mt-5 text-lg font-semibold'>Your feed is empty</h2>
+
+            <p className='mx-auto mt-2 max-w-sm text-sm leading-6 text-white/60'>
+              Follow people to see their posts here. You can discover new posts
+              and people as you explore Sociality.
+            </p>
+          </div>
+        ) : (
+          <div className='space-y-5'>
+            {posts.map((post) => (
+              <article
+                key={post.id}
+                className='overflow-hidden rounded-2xl border border-white/10 bg-white/2'
+              >
+                <div className='flex items-center gap-3 p-4'>
+                  {post.author.avatarUrl ? (
+                    <img
+                      src={post.author.avatarUrl}
+                      alt={`${post.author.name}'s avatar`}
+                      className='size-10 rounded-full object-cover'
+                    />
+                  ) : (
+                    <div className='flex size-10 shrink-0 items-center justify-center rounded-full bg-[#6936F2] text-sm font-semibold'>
+                      {post.author.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+
+                  <div className='min-w-0'>
+                    <p className='truncate text-sm font-semibold'>
+                      {post.author.name}
+                    </p>
+                    <p className='truncate text-xs text-white/50'>
+                      @{post.author.username}
+                    </p>
+                  </div>
+                </div>
+
+                <img
+                  src={post.imageUrl}
+                  alt={post.caption || `Post by ${post.author.username}`}
+                  className='block max-h-160 w-full bg-white/3 object-contain'
+                />
+
+                <div className='p-4'>
+                  <div className='flex items-center gap-5'>
+                    <div className='flex items-center gap-2 text-sm text-white/70'>
+                      <Heart size={19} />
+                      <span>{post.likeCount}</span>
+                    </div>
+
+                    <div className='flex items-center gap-2 text-sm text-white/70'>
+                      <MessageCircle size={19} />
+                      <span>{post.commentCount}</span>
+                    </div>
+                  </div>
+
+                  {post.caption && (
+                    <p className='mt-3 whitespace-pre-wrap wrap-break-words text-sm leading-6'>
+                      {post.caption}
+                    </p>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+    </main>
   );
 }
