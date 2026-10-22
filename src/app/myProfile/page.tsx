@@ -181,12 +181,16 @@ export default function MyProfilePage() {
 
                 <div className='h-7 w-px bg-white/10' />
 
-                <div className='flex-1'>
+                <Link
+                  href='/following'
+                  className='flex flex-1 flex-col items-center rounded-md transition hover:opacity-70'
+                  aria-label={`View ${stats.following ?? 0} accounts you follow`}
+                >
                   <p className='text-base font-bold text-white'>
                     {stats.following ?? 0}
                   </p>
                   <p className='text-xs text-white/50'>Following</p>
-                </div>
+                </Link>
 
                 <div className='h-7 w-px bg-white/10' />
 
