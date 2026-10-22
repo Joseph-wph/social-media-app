@@ -13,5 +13,9 @@ export function useFeed(page = 1, limit = 20) {
     queryKey: ['feed', userId, page, limit],
     queryFn: () => getFeed(page, limit),
     enabled: Boolean(token),
+
+    refetchInterval: 15_000,
+
+    refetchIntervalInBackground: false,
   });
 }

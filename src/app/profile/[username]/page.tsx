@@ -14,6 +14,7 @@ import { useUserPosts } from '@/hooks/useUserPosts';
 import { useToggleFollow } from '@/hooks/useFollow';
 import { useUserLikedPosts } from '@/hooks/useUserLikedPosts';
 import { useAuthStore } from '@/store/authStore';
+import PostDetailModal from '@/components/post/postDetailModal';
 
 export default function FriendsProfilePage() {
   const params = useParams<{ username: string }>();
@@ -21,11 +22,11 @@ export default function FriendsProfilePage() {
   const username = params.username;
 
   const token = useAuthStore((state) => state.token);
-  const currentUser = useAuthStore((state) => state.user); // Untuk avatar di header mobile kanan atas
+  const currentUser = useAuthStore((state) => state.user);
 
   const [activeTab, setActiveTab] = useState<'gallery' | 'liked'>('gallery');
   const [followError, setFollowError] = useState('');
-
+  const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
   const profileQuery = usePublicProfile(username);
   const postsQuery = useUserPosts(username);
 
@@ -375,9 +376,12 @@ export default function FriendsProfilePage() {
                 ) : (
                   <div className='grid grid-cols-3 gap-1 sm:gap-3'>
                     {posts.map((post) => (
-                      <article
+                      <button
                         key={post.id}
-                        className='relative aspect-square overflow-hidden rounded-md bg-white/5 sm:rounded-xl'
+                        type='button'
+                        onClick={() => setSelectedPostId(post.id)}
+                        aria-label={`Lihat postingan ${post.caption || 'tanpa caption'}`}
+                        className='relative aspect-square cursor-pointer overflow-hidden rounded-md bg-white/5 text-left sm:rounded-xl'
                       >
                         <Image
                           src={post.imageUrl}
@@ -387,7 +391,7 @@ export default function FriendsProfilePage() {
                           sizes='(max-width: 640px) 33vw, 300px'
                           className='object-cover transition duration-300 hover:scale-105'
                         />
-                      </article>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -447,6 +451,13 @@ export default function FriendsProfilePage() {
           </>
         )}
       </section>
+
+      {selectedPostId !== null && (
+        <PostDetailModal
+          postId={selectedPostId}
+          onClose={() => setSelectedPostId(null)}
+        />
+      )}
 
       <BottomNavbar />
     </main>

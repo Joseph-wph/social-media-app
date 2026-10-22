@@ -1,10 +1,13 @@
 import api from '@/lib/axios';
+
 import type {
   ApiResponse,
   Comment,
   CommentsData,
   CreateCommentRequest,
   FeedData,
+  FollowUser,
+  Pagination,
   Post,
   UserPostsData,
 } from '@/types';
@@ -30,12 +33,7 @@ export async function getFeed(
 
 export type PostsData = {
   posts: Post[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
+  pagination: Pagination;
 };
 
 export async function getPosts(
@@ -128,6 +126,49 @@ export async function savePost(postId: number): Promise<void> {
 
 export async function unsavePost(postId: number): Promise<void> {
   await api.delete(`/api/posts/${postId}/save`);
+}
+
+// ================================
+// LIKES
+// ================================
+
+export async function likePost(postId: number): Promise<void> {
+  await api.post(`/api/posts/${postId}/like`);
+}
+
+export async function unlikePost(postId: number): Promise<void> {
+  await api.delete(`/api/posts/${postId}/like`);
+}
+
+export async function getMyLikedPosts(
+  page = 1,
+  limit = 20
+): Promise<ApiResponse<PostsData>> {
+  const response = await api.get<ApiResponse<PostsData>>('/api/me/likes', {
+    params: { page, limit },
+  });
+
+  return response.data;
+}
+
+export type PostLikesData = {
+  users: FollowUser[];
+  pagination: Pagination;
+};
+
+export async function getPostLikes(
+  postId: number,
+  page = 1,
+  limit = 20
+): Promise<ApiResponse<PostLikesData>> {
+  const response = await api.get<ApiResponse<PostLikesData>>(
+    `/api/posts/${postId}/likes`,
+    {
+      params: { page, limit },
+    }
+  );
+
+  return response.data;
 }
 
 // ================================

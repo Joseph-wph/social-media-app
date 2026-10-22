@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { LogOut, Menu, Search, UserRound, X } from 'lucide-react';
+import { LogOut, Menu, UserRound, X } from 'lucide-react';
 
 import Container from '@/components/layout/container';
+import NavbarSearch from '@/components/layout/navbarSearch';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuthStore } from '@/store/authStore';
 
@@ -26,6 +27,7 @@ export default function Navbar() {
 
   const handleLogout = () => {
     setIsProfileMenuOpen(false);
+    setIsMenuOpen(false);
     logout();
   };
 
@@ -48,38 +50,11 @@ export default function Navbar() {
             />
           </Link>
 
-          {/* Desktop search input */}
-          <div
-            className='absolute left-1/2 hidden w-122.75
-           -translate-x-1/2 md:block'
-          >
-            <div className='relative'>
-              <Search
-                size={20}
-                aria-hidden='true'
-                className='pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-[#71717A]'
-              />
-
-              <input
-                type='search'
-                aria-label='Search Sociality'
-                placeholder='Search'
-                className='h-12 w-full rounded-full border border-white/10 bg-[#111111] pr-4 pl-12 text-sm text-white outline-none transition-colors placeholder:text-[#71717A] focus:border-primary-3 focus:ring-2 focus:ring-primary-3/20'
-              />
-            </div>
-          </div>
+          {/* Search */}
+          <NavbarSearch />
 
           {/* Right side */}
           <div className='ml-auto flex shrink-0 items-center gap-3'>
-            {/* Mobile search icon */}
-            <button
-              type='button'
-              aria-label='Search'
-              className='flex size-10 items-center justify-center rounded-full text-white transition hover:bg-white/10 md:hidden'
-            >
-              <Search size={22} />
-            </button>
-
             {user ? (
               /* Logged-in user */
               <div className='relative flex items-center gap-3'>
@@ -163,11 +138,11 @@ export default function Navbar() {
                 {/* Mobile dropdown menu */}
                 {isMenuOpen && (
                   <div className='fixed inset-x-0 top-16 z-50 flex justify-center border-b border-white/10 bg-black px-4 py-3 md:hidden'>
-                    <div className='flex items-center justify-center gap-2'>
+                    <div className='flex w-full max-w-sm items-center justify-center gap-2'>
                       <Link
                         href='/login'
                         onClick={() => setIsMenuOpen(false)}
-                        className='flex h-10 w-[174.5px] shrink-0 items-center justify-center rounded-full border border-gray-600 bg-transparent text-sm font-semibold text-white transition-colors hover:border-primary-3 hover:bg-primary-3'
+                        className='flex h-10 flex-1 items-center justify-center rounded-full border border-gray-600 bg-transparent text-sm font-semibold text-white transition-colors hover:border-primary-3 hover:bg-primary-3'
                       >
                         Log In
                       </Link>
@@ -175,7 +150,7 @@ export default function Navbar() {
                       <Link
                         href='/register'
                         onClick={() => setIsMenuOpen(false)}
-                        className='flex h-10 w-[174.5px] shrink-0 items-center justify-center rounded-full border border-gray-600 bg-transparent text-sm font-semibold text-white transition-colors hover:border-primary-3 hover:bg-primary-3'
+                        className='flex h-10 flex-1 items-center justify-center rounded-full border border-gray-600 bg-transparent text-sm font-semibold text-white transition-colors hover:border-primary-3 hover:bg-primary-3'
                       >
                         Register
                       </Link>

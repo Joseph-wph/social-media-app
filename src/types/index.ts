@@ -12,6 +12,19 @@ export type User = {
   bio?: string | null;
 };
 
+export interface UserSearchResult {
+  id: number;
+  username: string;
+  name: string;
+  avatarUrl: string | null;
+  isFollowedByMe: boolean;
+}
+
+export interface UserSearchData {
+  users: UserSearchResult[];
+  pagination: Pagination;
+}
+
 /* ================================
    AUTH REQUEST
 ================================ */

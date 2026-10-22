@@ -16,5 +16,9 @@ export function usePublicProfile(username: string) {
     queryKey: profileKeys.public(username),
     queryFn: () => getPublicProfile(username),
     enabled: Boolean(username),
+
+    refetchInterval: 15_000,
+
+    refetchIntervalInBackground: false,
   });
 }

@@ -3,6 +3,7 @@ import type {
   ApiResponse,
   MyProfile,
   PublicProfile,
+  UserSearchData,
   UpdateMyProfileRequest,
 } from '@/types';
 
@@ -48,6 +49,21 @@ export async function updateMyProfile(
   const response = await api.patch<ApiResponse<MyProfile['profile']>>(
     '/api/me',
     formData
+  );
+
+  return response.data;
+}
+
+export async function searchUsers(query: string, page = 1, limit = 10) {
+  const response = await api.get<ApiResponse<UserSearchData>>(
+    '/api/users/search',
+    {
+      params: {
+        q: query,
+        page,
+        limit,
+      },
+    }
   );
 
   return response.data;

@@ -7,7 +7,7 @@ import { Bookmark, Heart, MessageCircle, Send } from 'lucide-react';
 
 import PostAvatar from '@/components/post/postAvatar';
 import { useToggleSavePost } from '@/hooks/useToggleSavePost';
-
+import { useToggleLikePost } from '@/hooks/useToggleLikePost';
 import type { Post } from '@/types';
 
 type PostCardProps = {
@@ -26,7 +26,10 @@ export default function PostCard({
   onOpenComments,
 }: PostCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isLiked, setIsLiked] = useState(post.likedByMe);
+  const { likePost, unlikePost, isLiking, isUnliking } = useToggleLikePost();
+
+  const isLikePending = isLiking || isUnliking;
+  const isLiked = post.likedByMe;
   const [saveError, setSaveError] = useState('');
 
   const { savePost, unsavePost, isSaving, isUnsaving } = useToggleSavePost();
@@ -59,6 +62,22 @@ export default function PostCard({
           ? 'Unable to remove saved post. Please try again.'
           : 'Unable to save post. Please try again.'
       );
+    }
+  }
+
+  async function handleLikeToggle() {
+    if (!userId || isLikePending) {
+      return;
+    }
+
+    try {
+      if (isLiked) {
+        await unlikePost(post.id);
+      } else {
+        await likePost(post.id);
+      }
+    } catch (error) {
+      console.error('Failed to toggle like:', error);
     }
   }
 
@@ -107,9 +126,11 @@ export default function PostCard({
         <div className='flex items-center gap-4 text-xs font-medium text-white/80'>
           <button
             type='button'
-            onClick={() => setIsLiked((previous) => !previous)}
-            className='flex items-center gap-1.5 transition hover:text-white'
+            onClick={handleLikeToggle}
+            disabled={!userId || isLikePending}
+            className='flex items-center gap-1.5 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-50'
             aria-label={isLiked ? 'Unlike post' : 'Like post'}
+            aria-pressed={isLiked}
           >
             <Heart
               size={18}
