@@ -1,8 +1,23 @@
 import api from '@/lib/axios';
-import type { ApiResponse, MyProfile, UpdateMyProfileRequest } from '@/types';
+import type {
+  ApiResponse,
+  MyProfile,
+  PublicProfile,
+  UpdateMyProfileRequest,
+} from '@/types';
 
 export async function getMyProfile(): Promise<ApiResponse<MyProfile>> {
   const response = await api.get<ApiResponse<MyProfile>>('/api/me');
+
+  return response.data;
+}
+
+export async function getPublicProfile(
+  username: string
+): Promise<ApiResponse<PublicProfile>> {
+  const response = await api.get<ApiResponse<PublicProfile>>(
+    `/api/users/${encodeURIComponent(username)}`
+  );
 
   return response.data;
 }

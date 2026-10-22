@@ -6,6 +6,7 @@ import type {
   CreateCommentRequest,
   FeedData,
   Post,
+  UserPostsData,
 } from '@/types';
 
 // ================================
@@ -44,6 +45,36 @@ export async function getPosts(
   const response = await api.get<ApiResponse<PostsData>>('/api/posts', {
     params: { page, limit },
   });
+
+  return response.data;
+}
+
+export async function getUserPosts(
+  username: string,
+  page = 1,
+  limit = 20
+): Promise<ApiResponse<UserPostsData>> {
+  const response = await api.get<ApiResponse<UserPostsData>>(
+    `/api/users/${encodeURIComponent(username)}/posts`,
+    {
+      params: { page, limit },
+    }
+  );
+
+  return response.data;
+}
+
+export async function getUserLikedPosts(
+  username: string,
+  page = 1,
+  limit = 20
+): Promise<ApiResponse<UserPostsData>> {
+  const response = await api.get<ApiResponse<UserPostsData>>(
+    `/api/users/${encodeURIComponent(username)}/likes`,
+    {
+      params: { page, limit },
+    }
+  );
 
   return response.data;
 }

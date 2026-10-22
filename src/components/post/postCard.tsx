@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { Bookmark, Heart, MessageCircle, Send } from 'lucide-react';
 
 import PostAvatar from '@/components/post/postAvatar';
@@ -32,9 +33,12 @@ export default function PostCard({
 
   const isSavePending = isSaving || isUnsaving;
   const captionThreshold = 80;
-  const isCaptionLong = post.caption.length > captionThreshold;
+
+  const caption = post.caption ?? '';
+  const isCaptionLong = caption.length > captionThreshold;
 
   const authorName = post.author.name || post.author.username;
+  const profileHref = `/profile/${encodeURIComponent(post.author.username)}`;
 
   async function handleSaveToggle() {
     if (!userId || isSavePending || isSavedStatusPending) {
@@ -62,12 +66,21 @@ export default function PostCard({
     <article className='space-y-3'>
       {/* Post author */}
       <div className='flex items-center gap-3'>
-        <PostAvatar src={post.author.avatarUrl} name={authorName} />
+        <Link
+          href={profileHref}
+          aria-label={`View ${authorName}'s profile`}
+          className='shrink-0 rounded-full transition-opacity hover:opacity-80'
+        >
+          <PostAvatar src={post.author.avatarUrl} name={authorName} />
+        </Link>
 
         <div className='min-w-0'>
-          <p className='truncate text-xs font-semibold text-white'>
+          <Link
+            href={profileHref}
+            className='block truncate text-xs font-semibold text-white transition hover:text-[#A78BFA]'
+          >
             {authorName}
-          </p>
+          </Link>
 
           <p className='truncate text-[11px] text-white/40'>
             {post.createdAt
@@ -81,7 +94,7 @@ export default function PostCard({
       <div className='relative aspect-square w-full overflow-hidden rounded-2xl border border-white/5 bg-[#0D1017]'>
         <Image
           src={post.imageUrl}
-          alt={post.caption || 'Post image'}
+          alt={caption || 'Post image'}
           fill
           unoptimized
           sizes='(max-width: 640px) 100vw, 576px'
@@ -147,13 +160,18 @@ export default function PostCard({
       )}
 
       {/* Post caption */}
-      {post.caption && (
+      {caption && (
         <div className='text-xs leading-relaxed text-white/90'>
-          <span className='mr-1.5 font-semibold text-white'>{authorName}</span>
+          <Link
+            href={profileHref}
+            className='mr-1.5 font-semibold text-white transition hover:text-[#A78BFA]'
+          >
+            {authorName}
+          </Link>
 
           {isCaptionLong && !isExpanded ? (
             <>
-              {post.caption.slice(0, captionThreshold)}...
+              {caption.slice(0, captionThreshold)}...
               <button
                 type='button'
                 onClick={() => setIsExpanded(true)}
@@ -163,7 +181,7 @@ export default function PostCard({
               </button>
             </>
           ) : (
-            <span>{post.caption}</span>
+            <span>{caption}</span>
           )}
         </div>
       )}

@@ -86,6 +86,33 @@ export type PublicProfile = {
   username: string;
   bio: string | null;
   avatarUrl: string | null;
+  email: string;
+  phone: string;
+  counts: {
+    post: number;
+    followers: number;
+    following: number;
+    likes: number;
+  };
+  isFollowing: boolean;
+  isMe: boolean;
+};
+
+/* ================================
+   FOLLOW
+================================ */
+
+export type FollowUser = {
+  id: number;
+  username: string;
+  name: string;
+  avatarUrl: string | null;
+  isFollowedByMe: boolean;
+};
+
+export type FollowUsersData = {
+  users: FollowUser[];
+  pagination: Pagination;
 };
 
 /* ================================
@@ -102,12 +129,17 @@ export type PostAuthor = {
 export type Post = {
   id: number;
   imageUrl: string;
-  caption: string;
+  caption: string | null;
   createdAt: string;
   author: PostAuthor;
   likeCount: number;
   commentCount: number;
   likedByMe: boolean;
+};
+
+export type UserPostsData = {
+  posts: Post[];
+  pagination: Pagination;
 };
 
 /* ================================
