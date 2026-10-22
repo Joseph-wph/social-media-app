@@ -1,403 +1,539 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Heart, LoaderCircle, MessageCircle, X } from 'lucide-react';
-
 import {
-  createComment,
-  getPostById,
-  getPostComments,
-  likePost,
-  unlikePost,
-} from '@/lib/services/postService';
+  Bookmark,
+  Heart,
+  LoaderCircle,
+  MessageCircle,
+  MoreHorizontal,
+  Send,
+  Smile,
+  X,
+} from 'lucide-react';
+import { toast } from 'sonner';
+
+import PostAvatar from '@/components/post/postAvatar';
+import { usePostDetail } from '@/hooks/usePostDetail';
+import { usePostComments } from '@/hooks/usePostComments';
+import { useCreateComment } from '@/hooks/useCreateComment';
+import { useDeletePost } from '@/hooks/useDeletePost';
+import { useSavedPosts } from '@/hooks/useSavedPosts';
+import { useToggleLikePost } from '@/hooks/useToggleLikePost';
+import { useToggleSavePost } from '@/hooks/useToggleSavePost';
 import { useAuthStore } from '@/store/authStore';
+
+import type { Comment } from '@/types';
 
 interface PostDetailModalProps {
   postId: number;
   onClose: () => void;
 }
 
+const EMOJIS = [
+  '😀',
+  '😂',
+  '🥰',
+  '😍',
+  '😊',
+  '😉',
+  '🔥',
+  '❤️',
+  '👍',
+  '👏',
+  '🎉',
+  '🙏',
+  '😎',
+  '😭',
+  '🤔',
+  '💯',
+  '✨',
+  '🙌',
+];
+
 export default function PostDetailModal({
   postId,
   onClose,
 }: PostDetailModalProps) {
-  const queryClient = useQueryClient();
   const token = useAuthStore((state) => state.token);
   const currentUser = useAuthStore((state) => state.user);
 
-  const [commentText, setCommentText] = useState('');
-  const [commentError, setCommentError] = useState('');
+  const [text, setText] = useState('');
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
 
-  const postQuery = useQuery({
-    queryKey: ['post', postId],
-    queryFn: () => getPostById(postId),
-    enabled: postId > 0,
-  });
-
-  const commentsQuery = useQuery({
-    queryKey: ['post-comments', postId, 1, 10],
-    queryFn: () => getPostComments(postId, 1, 10),
-    enabled: postId > 0,
-  });
+  const postQuery = usePostDetail(postId);
+  const commentsQuery = usePostComments(postId, 1, 10);
+  const createCommentMutation = useCreateComment(postId);
+  const deletePostMutation = useDeletePost();
+  const { likePost, unlikePost, isLiking, isUnliking } = useToggleLikePost();
+  const { data: savedData, isPending: isSavedPending } = useSavedPosts(1, 20);
+  const { savePost, unsavePost, isSaving, isUnsaving } = useToggleSavePost();
 
   const post = postQuery.data?.data;
   const comments = commentsQuery.data?.data.comments ?? [];
+  const savedPosts = savedData?.data.posts ?? [];
 
-  const likeMutation = useMutation({
-    mutationFn: async () => {
-      if (!post) {
-        throw new Error('Postingan belum tersedia.');
+  const isMyPost =
+    currentUser?.id !== undefined && currentUser.id === post?.author.id;
+
+  const isSaved = savedPosts.some((savedPost) => savedPost.id === postId);
+  const isLikePending = isLiking || isUnliking;
+  const isSavePending = isSaving || isUnsaving;
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        onClose();
       }
+    }
 
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onClose]);
+
+  async function handleToggleLike() {
+    if (!token || !post || isLikePending) {
+      if (!token) {
+        toast.error('Please log in to like posts.');
+      }
+      return;
+    }
+
+    try {
       if (post.likedByMe) {
-        return unlikePost(postId);
+        await unlikePost(post.id);
+      } else {
+        await likePost(post.id);
       }
 
-      return likePost(postId);
-    },
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: ['post', postId],
-        }),
-        queryClient.invalidateQueries({ queryKey: ['feed'] }),
-        queryClient.invalidateQueries({ queryKey: ['user-posts'] }),
-        queryClient.invalidateQueries({
-          queryKey: ['user-liked-posts'],
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ['my-liked-posts'],
-        }),
-      ]);
-    },
-  });
+      toast.success(post.likedByMe ? 'Like removed' : 'Post liked');
+    } catch {
+      toast.error('Unable to update like. Please try again.');
+    }
+  }
 
-  const commentMutation = useMutation({
-    mutationFn: () => createComment(postId, { text: commentText.trim() }),
-    onSuccess: async () => {
-      setCommentText('');
-      setCommentError('');
-
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: ['post-comments', postId],
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ['post', postId],
-        }),
-        queryClient.invalidateQueries({ queryKey: ['feed'] }),
-        queryClient.invalidateQueries({
-          queryKey: ['user-posts'],
-        }),
-      ]);
-    },
-    onError: () => {
-      setCommentError('Komentar gagal dikirim. Silakan coba lagi.');
-    },
-  });
-
-  function handleSubmitComment(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    const trimmedText = text.trim();
+
     if (!token) {
-      setCommentError('Login terlebih dahulu untuk berkomentar.');
+      toast.error('Please log in to comment.');
       return;
     }
 
-    if (!commentText.trim() || commentMutation.isPending) {
+    if (!trimmedText || createCommentMutation.isPending) {
       return;
     }
 
-    setCommentError('');
-    commentMutation.mutate();
+    try {
+      await createCommentMutation.mutateAsync({ text: trimmedText });
+      setText('');
+      setIsEmojiPickerOpen(false);
+      toast.success('Comment added successfully');
+    } catch {
+      toast.error('Unable to add comment. Please try again.');
+    }
+  }
+
+  async function handleToggleSave() {
+    if (!token) {
+      toast.error('Please log in to save posts.');
+      return;
+    }
+
+    if (isSavePending || isSavedPending) {
+      return;
+    }
+
+    try {
+      if (isSaved) {
+        await unsavePost(postId);
+        toast.success('Post removed from saved posts');
+      } else {
+        await savePost(postId);
+        toast.success('Post saved successfully');
+      }
+    } catch {
+      toast.error('Unable to update saved post. Please try again.');
+    }
+  }
+
+  async function handleDeletePost() {
+    if (!isMyPost || deletePostMutation.isPending) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this post? This action cannot be undone.'
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deletePostMutation.mutateAsync(postId);
+      toast.success('Post deleted successfully');
+      onClose();
+    } catch {
+      toast.error('Unable to delete post. Please try again.');
+    }
+  }
+
+  async function handleShare() {
+    const postUrl = `${window.location.origin}/posts?postId=${postId}`;
+
+    try {
+      await navigator.clipboard.writeText(postUrl);
+      toast.success('Post link copied');
+    } catch {
+      toast.error('Unable to copy the post link.');
+    }
   }
 
   return (
     <div
-      className='fixed inset-0 z-100 flex items-center justify-center bg-black/80 p-3 backdrop-blur-sm sm:p-6'
-      onClick={onClose}
+      className='fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm'
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
     >
       <section
         role='dialog'
         aria-modal='true'
-        aria-label='Post detail'
-        className='relative flex max-h-[90dvh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#111111] md:flex-row'
-        onClick={(event) => event.stopPropagation()}
+        aria-label='Post details'
+        className='relative flex max-h-[90dvh] w-full max-w-5xl overflow-hidden rounded-2xl border border-white/10 bg-[#0B0E14] text-white shadow-2xl'
       >
         <button
           type='button'
-          aria-label='Close post detail'
           onClick={onClose}
-          className='absolute top-3 right-3 z-20 flex size-9 items-center justify-center rounded-full bg-black/70 text-white transition hover:bg-white/20'
+          aria-label='Close post details'
+          className='absolute right-4 top-4 z-50 flex size-8 items-center justify-center rounded-full bg-black/50 text-white/80 transition hover:text-white'
         >
           <X size={20} />
         </button>
 
-        {/* Post image */}
-        <div className='relative min-h-56 shrink-0 bg-black md:min-h-150 md:flex-1'>
+        {/* Left: post image */}
+        <div className='relative hidden flex-1 items-center justify-center bg-black sm:flex'>
           {postQuery.isPending ? (
-            <div className='flex h-full min-h-56 items-center justify-center text-white/50'>
-              <LoaderCircle className='animate-spin' />
-            </div>
+            <LoaderCircle className='animate-spin text-white/50' />
           ) : postQuery.isError || !post ? (
-            <div className='flex min-h-56 items-center justify-center p-6 text-center text-sm text-white/60'>
-              Postingan gagal dimuat.
-            </div>
+            <p className='p-6 text-center text-sm text-white/50'>
+              Unable to load post image.
+            </p>
           ) : (
             <Image
               src={post.imageUrl}
               alt={post.caption || 'Post image'}
               fill
               unoptimized
-              sizes='(max-width: 768px) 100vw, 60vw'
+              sizes='(max-width: 1024px) 50vw, 600px'
               className='object-contain'
             />
           )}
         </div>
 
-        {/* Post information and comments */}
-        <div className='flex min-h-0 flex-1 flex-col md:max-w-105'>
-          {postQuery.isPending ? (
-            <div className='flex flex-1 items-center justify-center p-6 text-sm text-white/50'>
+        {/* Right: post details and comments */}
+        <div className='flex w-full min-h-0 flex-col sm:w-105 sm:shrink-0'>
+          {!token ? (
+            <div className='flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center'>
+              <p className='text-sm text-white/60'>
+                Please log in to view post details and interact with this post.
+              </p>
+              <Link
+                href='/login'
+                onClick={onClose}
+                className='rounded-full bg-[#6936F2] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#7F51F9]'
+              >
+                Log in
+              </Link>
+            </div>
+          ) : postQuery.isPending ? (
+            <div className='flex flex-1 items-center justify-center gap-2 p-6 text-sm text-white/50'>
+              <LoaderCircle size={18} className='animate-spin' />
               Loading post...
             </div>
           ) : postQuery.isError || !post ? (
-            <div className='flex flex-1 flex-col items-center justify-center gap-3 p-6'>
+            <div className='flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center'>
               <p className='text-sm text-white/60'>
-                Detail postingan tidak dapat dimuat.
+                Unable to load post details.
               </p>
               <button
                 type='button'
                 onClick={() => postQuery.refetch()}
                 className='text-sm font-medium text-[#A78BFA] hover:text-white'
               >
-                Coba lagi
+                Try again
               </button>
             </div>
           ) : (
             <>
-              {/* Author */}
-              <div className='flex items-center gap-3 border-b border-white/10 p-4 pr-14'>
-                <div className='relative size-10 shrink-0 overflow-hidden rounded-full bg-white/10'>
-                  {post.author.avatarUrl ? (
-                    <Image
+              {/* Scrollable details */}
+              <div className='flex min-h-0 flex-1 flex-col space-y-4 overflow-y-auto p-5'>
+                {/* Author and options */}
+                <div className='flex items-center justify-between pr-8'>
+                  <div className='flex min-w-0 items-center gap-3'>
+                    <PostAvatar
                       src={post.author.avatarUrl}
-                      alt={post.author.name}
-                      fill
-                      unoptimized
-                      sizes='40px'
-                      className='object-cover'
+                      name={post.author.name || post.author.username}
+                      size='size-8'
                     />
-                  ) : (
-                    <div className='flex h-full items-center justify-center font-semibold text-white'>
-                      {post.author.name.charAt(0).toUpperCase()}
+
+                    <div className='min-w-0'>
+                      <Link
+                        href={`/profile/${encodeURIComponent(post.author.username)}`}
+                        onClick={onClose}
+                        className='block truncate text-sm font-semibold text-white hover:underline'
+                      >
+                        {post.author.name || post.author.username}
+                      </Link>
+                      <p className='truncate text-[11px] text-white/40'>
+                        @{post.author.username} ·{' '}
+                        {new Date(post.createdAt).toLocaleDateString()}
+                      </p>
                     </div>
-                  )}
+                  </div>
+
+                  <div className='relative shrink-0'>
+                    <button
+                      type='button'
+                      onClick={() => setIsMoreMenuOpen((previous) => !previous)}
+                      aria-label='More post options'
+                      aria-expanded={isMoreMenuOpen}
+                      className='p-1 text-white/60 transition hover:text-white'
+                    >
+                      <MoreHorizontal size={20} />
+                    </button>
+
+                    {isMoreMenuOpen && isMyPost && (
+                      <div className='absolute right-0 top-full z-40 mt-2 w-44 overflow-hidden rounded-xl border border-white/10 bg-[#181820] py-1 shadow-xl'>
+                        <button
+                          type='button'
+                          onClick={handleDeletePost}
+                          disabled={deletePostMutation.isPending}
+                          className='w-full px-4 py-2.5 text-left text-xs font-medium text-red-400 hover:bg-red-500/10 disabled:opacity-50'
+                        >
+                          {deletePostMutation.isPending
+                            ? 'Deleting...'
+                            : 'Delete post'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div className='min-w-0'>
-                  <Link
-                    href={`/profile/${encodeURIComponent(post.author.username)}`}
-                    onClick={onClose}
-                    className='block truncate text-sm font-semibold text-white hover:underline'
-                  >
-                    {post.author.name}
-                  </Link>
-                  <p className='text-xs text-white/50'>
-                    @{post.author.username}
-                  </p>
-                </div>
-              </div>
+                {/* Caption */}
+                {post.caption && (
+                  <div className='border-b border-white/10 pb-4 text-xs leading-relaxed whitespace-pre-wrap text-white/80'>
+                    {post.caption}
+                  </div>
+                )}
 
-              {/* Caption */}
-              <div className='border-b border-white/10 p-4'>
-                <p className='text-sm leading-relaxed whitespace-pre-wrap text-white/90'>
-                  {post.caption || 'Tidak ada caption.'}
-                </p>
-                <p className='mt-2 text-xs text-white/40'>
-                  {new Date(post.createdAt).toLocaleDateString('id-ID', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                  })}
-                </p>
-              </div>
-
-              {/* Comments list */}
-              <div className='min-h-0 flex-1 space-y-4 overflow-y-auto p-4'>
-                <h2 className='flex items-center gap-2 text-sm font-semibold text-white'>
-                  <MessageCircle size={17} />
+                {/* Comments heading */}
+                <h2 className='text-xs font-semibold text-white/90'>
                   Comments ({post.commentCount})
                 </h2>
 
-                {commentsQuery.isPending ? (
-                  <div className='flex items-center justify-center gap-2 py-6 text-sm text-white/50'>
-                    <LoaderCircle size={16} className='animate-spin' />
-                    Loading comments...
-                  </div>
-                ) : commentsQuery.isError ? (
-                  <div className='space-y-2 py-4 text-center'>
-                    <p className='text-sm text-white/50'>
-                      Komentar gagal dimuat.
-                    </p>
-                    <button
-                      type='button'
-                      onClick={() => commentsQuery.refetch()}
-                      className='text-sm text-[#A78BFA] hover:text-white'
-                    >
-                      Coba lagi
-                    </button>
-                  </div>
-                ) : comments.length === 0 ? (
-                  <p className='py-6 text-center text-sm text-white/40'>
-                    Belum ada komentar. Jadilah yang pertama!
-                  </p>
-                ) : (
-                  comments.map((comment) => (
-                    <article key={comment.id} className='flex gap-3'>
-                      <div className='relative size-8 shrink-0 overflow-hidden rounded-full bg-white/10'>
-                        {comment.author.avatarUrl ? (
-                          <Image
-                            src={comment.author.avatarUrl}
-                            alt={comment.author.name}
-                            fill
-                            unoptimized
-                            sizes='32px'
-                            className='object-cover'
-                          />
-                        ) : (
-                          <div className='flex h-full items-center justify-center text-xs font-semibold text-white'>
-                            {comment.author.name.charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className='min-w-0 flex-1'>
-                        <p className='wrap-break-words text-sm text-white/90'>
-                          <Link
-                            href={`/profile/${encodeURIComponent(comment.author.username)}`}
-                            onClick={onClose}
-                            className='mr-2 font-semibold text-white hover:underline'
-                          >
-                            {comment.author.username}
-                          </Link>
-                          {comment.text}
-                        </p>
-                        <p className='mt-1 text-[11px] text-white/40'>
-                          {new Date(comment.createdAt).toLocaleDateString(
-                            'id-ID',
-                            {
-                              day: 'numeric',
-                              month: 'short',
-                              year: 'numeric',
-                            }
-                          )}
-                        </p>
-                      </div>
-                    </article>
-                  ))
-                )}
-              </div>
-
-              {/* Like and comment form */}
-              <div className='border-t border-white/10 p-4'>
-                <div className='mb-3 flex items-center gap-2'>
-                  <button
-                    type='button'
-                    aria-label={post.likedByMe ? 'Unlike post' : 'Like post'}
-                    disabled={!token || likeMutation.isPending}
-                    onClick={() => likeMutation.mutate()}
-                    className='flex items-center gap-2 rounded-full py-1 text-sm transition hover:text-[#F43F5E] disabled:cursor-not-allowed disabled:opacity-50'
-                  >
-                    <Heart
-                      size={23}
-                      className={
-                        post.likedByMe
-                          ? 'fill-[#F43F5E] text-[#F43F5E]'
-                          : 'text-white'
-                      }
-                    />
-                    <span className='text-white'>{post.likeCount}</span>
-                  </button>
-
-                  <span className='text-xs text-white/40'>
-                    {post.commentCount} comments
-                  </span>
-                </div>
-
-                {likeMutation.isError && (
-                  <p role='alert' className='mb-2 text-xs text-red-400'>
-                    Like gagal diperbarui. Silakan coba lagi.
-                  </p>
-                )}
-
-                {!token ? (
-                  <p className='text-sm text-white/50'>
-                    <Link
-                      href='/login'
-                      onClick={onClose}
-                      className='font-semibold text-[#A78BFA] hover:underline'
-                    >
-                      Login
-                    </Link>{' '}
-                    untuk like dan berkomentar.
-                  </p>
-                ) : (
-                  <form onSubmit={handleSubmitComment} className='space-y-2'>
-                    <div className='flex items-center gap-2'>
-                      <div className='relative size-8 shrink-0 overflow-hidden rounded-full bg-white/10'>
-                        {currentUser?.avatarUrl ? (
-                          <Image
-                            src={currentUser.avatarUrl}
-                            alt={currentUser.name}
-                            fill
-                            unoptimized
-                            sizes='32px'
-                            className='object-cover'
-                          />
-                        ) : (
-                          <div className='flex h-full items-center justify-center text-xs font-semibold text-white'>
-                            {currentUser?.name?.charAt(0).toUpperCase() || 'U'}
-                          </div>
-                        )}
-                      </div>
-
-                      <input
-                        type='text'
-                        value={commentText}
-                        onChange={(event) => setCommentText(event.target.value)}
-                        placeholder='Tulis komentar...'
-                        maxLength={1000}
-                        aria-label='Write a comment'
-                        className='h-10 min-w-0 flex-1 rounded-full border border-white/10 bg-black px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-[#7F51F9]'
-                      />
-
+                {/* Comments list */}
+                <div className='space-y-4 pr-1'>
+                  {commentsQuery.isPending ? (
+                    <div className='flex items-center justify-center gap-2 py-6 text-xs text-white/40'>
+                      <LoaderCircle size={15} className='animate-spin' />
+                      Loading comments...
+                    </div>
+                  ) : commentsQuery.isError ? (
+                    <div className='py-6 text-center'>
+                      <p className='text-xs text-red-400'>
+                        Unable to load comments.
+                      </p>
                       <button
-                        type='submit'
-                        disabled={
-                          !commentText.trim() || commentMutation.isPending
-                        }
-                        className='shrink-0 rounded-full bg-[#6936F2] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#7F51F9] disabled:cursor-not-allowed disabled:opacity-50'
+                        type='button'
+                        onClick={() => commentsQuery.refetch()}
+                        className='mt-2 text-xs font-medium text-[#A78BFA] hover:underline'
                       >
-                        {commentMutation.isPending ? 'Sending...' : 'Send'}
+                        Try again
                       </button>
                     </div>
-
-                    {commentError && (
-                      <p role='alert' className='text-xs text-red-400'>
-                        {commentError}
-                      </p>
-                    )}
-                  </form>
-                )}
+                  ) : comments.length === 0 ? (
+                    <p className='py-6 text-center text-xs text-white/40'>
+                      No comments yet.
+                    </p>
+                  ) : (
+                    comments.map((comment) => (
+                      <CommentItem
+                        key={comment.id}
+                        comment={comment}
+                        onClose={onClose}
+                      />
+                    ))
+                  )}
+                </div>
               </div>
+
+              {/* Footer */}
+              <footer className='shrink-0 space-y-3 border-t border-white/10 bg-[#0B0E14] p-4'>
+                <div className='flex items-center justify-between text-xs font-medium text-white/80'>
+                  <div className='flex items-center gap-4'>
+                    <button
+                      type='button'
+                      onClick={handleToggleLike}
+                      disabled={isLikePending}
+                      aria-label={post.likedByMe ? 'Unlike post' : 'Like post'}
+                      aria-pressed={post.likedByMe}
+                      className='flex items-center gap-1.5 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-50'
+                    >
+                      <Heart
+                        size={18}
+                        className={
+                          post.likedByMe ? 'fill-pink-500 text-pink-500' : ''
+                        }
+                      />
+                      <span>{post.likeCount}</span>
+                    </button>
+
+                    <div className='flex items-center gap-1.5'>
+                      <MessageCircle size={18} />
+                      <span>{post.commentCount}</span>
+                    </div>
+
+                    <button
+                      type='button'
+                      onClick={handleShare}
+                      aria-label='Copy post link'
+                      className='flex items-center gap-1.5 transition hover:text-white'
+                    >
+                      <Send size={16} />
+                    </button>
+                  </div>
+
+                  <button
+                    type='button'
+                    onClick={handleToggleSave}
+                    disabled={isSavePending || isSavedPending}
+                    aria-label={isSaved ? 'Unsave post' : 'Save post'}
+                    aria-pressed={isSaved}
+                    title={isSaved ? 'Remove from saved posts' : 'Save post'}
+                    className='text-white/80 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-50'
+                  >
+                    <Bookmark
+                      size={18}
+                      className={isSaved ? 'fill-white text-white' : ''}
+                    />
+                  </button>
+                </div>
+
+                {/* Comment form */}
+                <form
+                  onSubmit={handleSubmit}
+                  className='relative flex items-center gap-2.5'
+                >
+                  {isEmojiPickerOpen && (
+                    <div className='absolute bottom-full left-0 z-40 mb-3 grid grid-cols-6 gap-1 rounded-xl border border-white/10 bg-[#181820] p-3 shadow-xl'>
+                      {EMOJIS.map((emoji) => (
+                        <button
+                          key={emoji}
+                          type='button'
+                          onClick={() => {
+                            setText((previous) => previous + emoji);
+                            setIsEmojiPickerOpen(false);
+                          }}
+                          className='flex size-8 items-center justify-center rounded-lg text-lg hover:bg-white/10'
+                          aria-label={`Insert ${emoji}`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <button
+                    type='button'
+                    onClick={() =>
+                      setIsEmojiPickerOpen((previous) => !previous)
+                    }
+                    aria-label='Add emoji'
+                    aria-expanded={isEmojiPickerOpen}
+                    className='shrink-0 text-white/40 transition hover:text-white'
+                  >
+                    <Smile size={20} />
+                  </button>
+
+                  <div className='flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 focus-within:border-white/20'>
+                    <input
+                      value={text}
+                      onChange={(event) => setText(event.target.value)}
+                      placeholder='Add Comment'
+                      maxLength={2000}
+                      aria-label='Write a comment'
+                      className='w-full min-w-0 bg-transparent text-xs text-white outline-none placeholder:text-white/30'
+                    />
+
+                    <button
+                      type='submit'
+                      disabled={!text.trim() || createCommentMutation.isPending}
+                      className='shrink-0 text-xs font-semibold text-white/80 transition hover:text-white disabled:opacity-30'
+                    >
+                      {createCommentMutation.isPending ? 'Posting...' : 'Post'}
+                    </button>
+                  </div>
+                </form>
+              </footer>
             </>
           )}
         </div>
       </section>
+    </div>
+  );
+}
+
+function CommentItem({
+  comment,
+  onClose,
+}: {
+  comment: Comment;
+  onClose: () => void;
+}) {
+  return (
+    <div className='flex items-start gap-3 text-xs'>
+      <PostAvatar
+        src={comment.author.avatarUrl}
+        name={comment.author.name || comment.author.username}
+        size='size-8'
+      />
+
+      <div className='min-w-0 flex-1 space-y-1'>
+        <div>
+          <Link
+            href={`/profile/${encodeURIComponent(comment.author.username)}`}
+            onClick={onClose}
+            className='leading-none font-semibold text-white hover:underline'
+          >
+            {comment.author.name || comment.author.username}
+          </Link>
+
+          <p className='mt-0.5 text-[10px] text-white/40'>
+            {new Date(comment.createdAt).toLocaleDateString()}
+            {comment.isMine ? ' · You' : ''}
+          </p>
+        </div>
+
+        <p className='wrap-break-words leading-relaxed text-white/80'>
+          {comment.text}
+        </p>
+      </div>
     </div>
   );
 }
