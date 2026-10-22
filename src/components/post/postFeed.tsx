@@ -29,20 +29,14 @@ export default function PostFeed({
 }: PostFeedProps) {
   const { data: savedData, isPending: isSavedPending } = useSavedPosts(1, 20);
 
-  const savedPosts = savedData?.data.posts ?? [];
+  const savedPosts = token ? (savedData?.data.posts ?? []) : [];
   const savedPostIds = new Set(savedPosts.map((post) => post.id));
 
   return (
     <section className='mx-auto w-full max-w-xl px-4 py-6 sm:py-8'>
-      {!token ? (
-        <div className='rounded-2xl border border-white/10 bg-[#0D1017] px-6 py-12 text-center'>
-          <h2 className='text-lg font-semibold'>Welcome to Sociality</h2>
-
-          <p className='mx-auto mt-3 max-w-sm text-sm text-white/60'>
-            Sign in to see your feed and connect with your community.
-          </p>
-
-          <div className='mt-6 flex justify-center gap-3'>
+      {!token && (
+        <div className='mb-8 rounded-2xl border border-white/10 bg-[#0D1017] px-6 py-6 text-center'>
+          <div className='mt-5 flex justify-center gap-3'>
             <Link
               href='/login'
               className='rounded-full bg-[#6C38FF] px-5 py-2.5 text-sm font-semibold transition hover:bg-[#5a2ee0]'
@@ -58,7 +52,9 @@ export default function PostFeed({
             </Link>
           </div>
         </div>
-      ) : isPending ? (
+      )}
+
+      {isPending ? (
         <div className='space-y-6' aria-live='polite'>
           {[1, 2].map((item) => (
             <div
@@ -67,7 +63,6 @@ export default function PostFeed({
             >
               <div className='flex items-center gap-3'>
                 <div className='size-10 rounded-full bg-white/10' />
-
                 <div className='space-y-2'>
                   <div className='h-3 w-28 rounded bg-white/10' />
                   <div className='h-2.5 w-16 rounded bg-white/10' />
@@ -83,7 +78,7 @@ export default function PostFeed({
           className='rounded-2xl border border-red-400/20 bg-red-400/5 px-6 py-10 text-center'
           role='alert'
         >
-          <h2 className='text-lg font-semibold'>Unable to load your feed</h2>
+          <h2 className='text-lg font-semibold'>Unable to load posts</h2>
 
           <p className='mt-2 text-sm text-white/60'>
             Something went wrong while loading posts. Please try again.
@@ -104,11 +99,14 @@ export default function PostFeed({
             <MessageCircle size={24} className='text-white/60' />
           </div>
 
-          <h2 className='mt-4 text-base font-semibold'>Your feed is empty</h2>
+          <h2 className='mt-4 text-base font-semibold'>
+            {token ? 'Your feed is empty' : 'No public posts yet'}
+          </h2>
 
           <p className='mx-auto mt-2 max-w-xs text-xs leading-relaxed text-white/50'>
-            Follow people to see their posts here. You can discover new posts
-            and people as you explore Sociality.
+            {token
+              ? 'Follow people to see their posts here. You can discover new posts and people as you explore Sociality.'
+              : 'Be among the first to join the Sociality community.'}
           </p>
         </div>
       ) : (
@@ -118,7 +116,7 @@ export default function PostFeed({
               key={post.id}
               post={post}
               isSaved={savedPostIds.has(post.id)}
-              isSavedStatusPending={isSavedPending}
+              isSavedStatusPending={token ? isSavedPending : false}
               userId={userId}
               onOpenComments={() => onOpenComments(post)}
             />

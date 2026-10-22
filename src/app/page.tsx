@@ -5,7 +5,7 @@ import { useState } from 'react';
 import Navbar from '@/components/layout/navbar';
 import BottomNavbar from '@/components/layout/bottomNavbar';
 import PostFeed from '@/components/post/postFeed';
-import CommentModal from '@/components/post/commentModal';
+import PostDetailModal from '@/components/post/postDetailModal';
 
 import { usePosts } from '@/hooks/usePosts';
 import { useAuthStore } from '@/store/authStore';
@@ -36,13 +36,11 @@ export default function Home() {
         onOpenComments={setSelectedPost}
       />
 
-      <BottomNavbar />
+      {token && <BottomNavbar />}
 
       {selectedPost && (
-        <CommentModal
-          key={selectedPost.id}
-          post={selectedPost}
-          userId={userId}
+        <PostDetailModal
+          postId={selectedPost.id}
           onClose={() => setSelectedPost(null)}
         />
       )}

@@ -154,9 +154,7 @@ export default function FriendsProfilePage() {
                     </h1>
 
                     <p className='truncate text-sm text-white/60'>
-                      {profile.username.startsWith('@')
-                        ? profile.username
-                        : `johndoe`}
+                      @{profile.username.replace(/^@/, '')}
                     </p>
                   </div>
                 </div>
