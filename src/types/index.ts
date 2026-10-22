@@ -71,6 +71,8 @@ export type MyProfile = {
 };
 
 export type UpdateMyProfileRequest = {
+  name?: string;
+  email?: string;
   username?: string;
   phone?: string;
   bio?: string;

@@ -5,6 +5,7 @@ import type { ChangeEvent, FormEvent } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowLeft, LoaderCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 import Navbar from '@/components/layout/navbar';
 import Container from '@/components/layout/container';
@@ -12,7 +13,12 @@ import { useMyProfile } from '@/hooks/useMyProfile';
 import { useUpdateProfile } from '@/hooks/useUpdateProfile';
 import type { MyProfile, UpdateMyProfileRequest } from '@/types';
 
+type ProfileField = 'name' | 'username' | 'email' | 'phone';
+
+type ProfileErrors = Partial<Record<ProfileField, string>>;
+
 export default function UpdateProfilePage() {
+  const router = useRouter();
   const { data, isPending, isError, refetch } = useMyProfile();
   const updateProfile = useUpdateProfile();
 
@@ -59,14 +65,19 @@ export default function UpdateProfilePage() {
       key={profile.id}
       profile={profile}
       isSaving={updateProfile.isPending}
-      isSuccess={updateProfile.isSuccess}
       isError={updateProfile.isError}
       errorMessage={
         updateProfile.error instanceof Error
           ? updateProfile.error.message
           : 'Unable to update profile. Please try again.'
       }
-      onSubmit={(payload) => updateProfile.mutate(payload)}
+      onSubmit={(payload) =>
+        updateProfile.mutate(payload, {
+          onSuccess: () => {
+            router.push('/myProfile');
+          },
+        })
+      }
     />
   );
 }
@@ -74,7 +85,6 @@ export default function UpdateProfilePage() {
 type UpdateProfileFormProps = {
   profile: MyProfile['profile'];
   isSaving: boolean;
-  isSuccess: boolean;
   isError: boolean;
   errorMessage: string;
   onSubmit: (payload: UpdateMyProfileRequest) => void;
@@ -83,17 +93,18 @@ type UpdateProfileFormProps = {
 function UpdateProfileForm({
   profile,
   isSaving,
-  isSuccess,
   isError,
   errorMessage,
   onSubmit,
 }: UpdateProfileFormProps) {
+  const [name, setName] = useState(profile.name);
   const [username, setUsername] = useState(profile.username);
+  const [email, setEmail] = useState(profile.email);
   const [phone, setPhone] = useState(profile.phone ?? '');
   const [bio, setBio] = useState(profile.bio ?? '');
   const [avatar, setAvatar] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState(profile.avatarUrl ?? '');
-  const [validationError, setValidationError] = useState('');
+  const [errors, setErrors] = useState<ProfileErrors>({});
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewUrlRef = useRef<string | null>(null);
@@ -105,6 +116,13 @@ function UpdateProfileForm({
       }
     };
   }, []);
+
+  function clearFieldError(field: ProfileField) {
+    setErrors((previous) => ({
+      ...previous,
+      [field]: undefined,
+    }));
+  }
 
   function handleAvatarChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -135,22 +153,45 @@ function UpdateProfileForm({
     previewUrlRef.current = objectUrl;
     setAvatar(file);
     setAvatarPreview(objectUrl);
-    setValidationError('');
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setValidationError('');
 
+    const trimmedName = name.trim();
     const trimmedUsername = username.trim();
+    const trimmedEmail = email.trim();
     const trimmedPhone = phone.trim();
 
-    if (!trimmedUsername || !trimmedPhone) {
-      setValidationError('Username and phone number are required.');
+    const nextErrors: ProfileErrors = {};
+
+    if (!trimmedName) {
+      nextErrors.name = 'Name is required.';
+    }
+
+    if (!trimmedUsername) {
+      nextErrors.username = 'Username is required.';
+    }
+
+    if (!trimmedEmail) {
+      nextErrors.email = 'Email is required.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      nextErrors.email = 'Please enter a valid email address.';
+    }
+
+    if (!trimmedPhone) {
+      nextErrors.phone = 'Phone number is required.';
+    }
+
+    setErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
       return;
     }
 
     const payload: UpdateMyProfileRequest = {
+      name: trimmedName,
+      email: trimmedEmail,
       username: trimmedUsername,
       phone: trimmedPhone,
       bio: bio.trim(),
@@ -158,6 +199,23 @@ function UpdateProfileForm({
     };
 
     onSubmit(payload);
+  }
+
+  const inputClass = (field: ProfileField) =>
+    `w-full rounded-xl border bg-[#0D1017] px-4 py-3 text-sm text-white outline-none transition focus:border-indigo-500 ${
+      errors[field] ? 'border-red-500' : 'border-white/5'
+    }`;
+
+  function renderFieldError(field: ProfileField) {
+    const message = errors[field];
+
+    if (!message) return null;
+
+    return (
+      <p className='mt-1.5 text-xs text-red-400' role='alert'>
+        {message}
+      </p>
+    );
   }
 
   return (
@@ -194,7 +252,7 @@ function UpdateProfileForm({
                     />
                   ) : (
                     <div className='flex h-full w-full items-center justify-center bg-[#6936F2] text-3xl font-bold'>
-                      {profile.name?.charAt(0).toUpperCase()}
+                      {name.charAt(0).toUpperCase()}
                     </div>
                   )}
                 </div>
@@ -243,18 +301,25 @@ function UpdateProfileForm({
                     htmlFor='name'
                     className='mb-2 block text-xs font-semibold text-white/90'
                   >
-                    Name
+                    Name <span className='text-red-400'>*</span>
                   </label>
                   <input
                     id='name'
+                    name='name'
                     type='text'
-                    value={profile.name}
-                    readOnly
-                    className='w-full cursor-not-allowed rounded-xl border border-white/5 bg-[#0D1017] px-4 py-3 text-sm text-white/50 outline-none'
+                    value={name}
+                    onChange={(event) => {
+                      setName(event.target.value);
+                      clearFieldError('name');
+                    }}
+                    aria-invalid={Boolean(errors.name)}
+                    aria-describedby={errors.name ? 'name-error' : undefined}
+                    required
+                    maxLength={100}
+                    autoComplete='name'
+                    className={inputClass('name')}
                   />
-                  <p className='mt-1 text-xs text-white/40'>
-                    Name cannot be changed through this form.
-                  </p>
+                  {renderFieldError('name')}
                 </div>
 
                 <div>
@@ -269,14 +334,20 @@ function UpdateProfileForm({
                     name='username'
                     type='text'
                     value={username}
-                    onChange={(event) => setUsername(event.target.value)}
+                    onChange={(event) => {
+                      setUsername(event.target.value);
+                      clearFieldError('username');
+                    }}
+                    aria-invalid={Boolean(errors.username)}
+                    aria-describedby={
+                      errors.username ? 'username-error' : undefined
+                    }
                     required
-                    pattern='.*\S.*'
-                    title='Username cannot be empty or contain only spaces.'
                     maxLength={30}
                     autoComplete='username'
-                    className='w-full rounded-xl border border-white/5 bg-[#0D1017] px-4 py-3 text-sm text-white outline-none transition focus:border-indigo-500'
+                    className={inputClass('username')}
                   />
+                  {renderFieldError('username')}
                 </div>
 
                 <div>
@@ -284,18 +355,24 @@ function UpdateProfileForm({
                     htmlFor='email'
                     className='mb-2 block text-xs font-semibold text-white/90'
                   >
-                    Email
+                    Email <span className='text-red-400'>*</span>
                   </label>
                   <input
                     id='email'
+                    name='email'
                     type='email'
-                    value={profile.email}
-                    readOnly
-                    className='w-full cursor-not-allowed rounded-xl border border-white/5 bg-[#0D1017] px-4 py-3 text-sm text-white/50 outline-none'
+                    value={email}
+                    onChange={(event) => {
+                      setEmail(event.target.value);
+                      clearFieldError('email');
+                    }}
+                    aria-invalid={Boolean(errors.email)}
+                    aria-describedby={errors.email ? 'email-error' : undefined}
+                    required
+                    autoComplete='email'
+                    className={inputClass('email')}
                   />
-                  <p className='mt-1 text-xs text-white/40'>
-                    Email cannot be changed through this form.
-                  </p>
+                  {renderFieldError('email')}
                 </div>
 
                 <div>
@@ -310,13 +387,17 @@ function UpdateProfileForm({
                     name='phone'
                     type='tel'
                     value={phone}
-                    onChange={(event) => setPhone(event.target.value)}
+                    onChange={(event) => {
+                      setPhone(event.target.value);
+                      clearFieldError('phone');
+                    }}
+                    aria-invalid={Boolean(errors.phone)}
+                    aria-describedby={errors.phone ? 'phone-error' : undefined}
                     required
-                    pattern='.*\S.*'
-                    title='Phone number cannot be empty or contain only spaces.'
                     autoComplete='tel'
-                    className='w-full rounded-xl border border-white/5 bg-[#0D1017] px-4 py-3 text-sm text-white outline-none transition focus:border-indigo-500'
+                    className={inputClass('phone')}
                   />
+                  {renderFieldError('phone')}
                 </div>
 
                 <div>
@@ -341,21 +422,9 @@ function UpdateProfileForm({
                   </p>
                 </div>
 
-                {validationError && (
-                  <p className='text-xs text-red-400' role='alert'>
-                    {validationError}
-                  </p>
-                )}
-
                 {isError && (
                   <p className='text-xs text-red-400' role='alert'>
                     {errorMessage}
-                  </p>
-                )}
-
-                {isSuccess && (
-                  <p className='text-xs text-emerald-400' role='status'>
-                    Profile updated successfully.
                   </p>
                 )}
 

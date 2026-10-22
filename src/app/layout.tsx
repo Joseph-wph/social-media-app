@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
+import type { ReactNode } from 'react';
 import localFont from 'next/font/local';
 
 import QueryProvider from '../provider/queryProvider';
+import { AuthHydration } from '../provider/authHydration';
 
 import './globals.css';
 
@@ -44,11 +46,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{ children: React.ReactNode }>) {
+}: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang='id' className={sfPro.variable}>
+    <html lang='en' className={sfPro.variable}>
       <body>
-        <QueryProvider>{children}</QueryProvider>
+        <AuthHydration>
+          <QueryProvider>{children}</QueryProvider>
+        </AuthHydration>
       </body>
     </html>
   );

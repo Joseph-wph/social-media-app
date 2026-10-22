@@ -24,8 +24,8 @@ export async function updateMyProfile(
     formData.append('bio', payload.bio);
   }
 
-  if (payload.avatar) {
-    formData.append('avatar', payload.avatar);
+  if (payload.avatar instanceof File) {
+    formData.append('avatar', payload.avatar, payload.avatar.name);
   } else if (payload.avatarUrl !== undefined) {
     formData.append('avatarUrl', payload.avatarUrl);
   }
