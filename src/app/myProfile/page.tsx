@@ -3,41 +3,64 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import {
-  ArrowLeft,
-  Bookmark,
-  Grid,
-  Home,
-  LoaderCircle,
-  Plus,
-  Send,
-  User,
-} from 'lucide-react';
+import { ArrowLeft, Bookmark, Grid, LoaderCircle, Send } from 'lucide-react';
 
+import BottomNavbar from '@/components/layout/bottomNavbar';
 import Navbar from '@/components/layout/navbar';
 import Container from '@/components/layout/container';
 import { useMyProfile } from '@/hooks/useMyProfile';
+import { usePosts } from '@/hooks/usePosts';
+import { useAuthStore } from '@/store/authStore';
+import { useSavedPosts } from '@/hooks/useSavedPosts';
 
 export default function MyProfilePage() {
   const { data, isPending, isError, refetch } = useMyProfile();
+
   const [activeTab, setActiveTab] = useState<'gallery' | 'saved'>('gallery');
+
+  const userId = useAuthStore((state) => state.user?.id);
+
+  const {
+    data: postsData,
+    isPending: isPostsPending,
+    isError: isPostsError,
+    refetch: refetchPosts,
+  } = usePosts(1, 20);
 
   const profile = data?.data.profile;
   const stats = data?.data.stats;
 
+  const myPosts = (postsData?.data.posts ?? []).filter(
+    (post) => post.author.id === userId
+  );
+
+  const {
+    data: savedData,
+    isPending: isSavedPending,
+    isError: isSavedError,
+    refetch: refetchSavedPosts,
+  } = useSavedPosts(1, 20);
+
+  const savedPosts = savedData?.data.posts ?? [];
+
   return (
-    <main className='min-h-screen bg-black text-white pb-28'>
-      {/* Navbar Desktop (Sembunyi di Mobile) */}
+    <main className='min-h-screen bg-black pb-28 text-white'>
+      {/* Navbar Desktop */}
       <div className='hidden md:block'>
         <Navbar />
       </div>
 
-      {/* Header Bar Mobile (Hanya tampil di Mobile) */}
+      {/* Header Mobile */}
       <header className='sticky top-0 z-40 flex items-center justify-between border-b border-white/10 bg-black/80 px-4 py-3.5 backdrop-blur-md md:hidden'>
         <div className='flex items-center gap-3'>
-          <Link href='/' className='text-white transition hover:opacity-80'>
+          <Link
+            href='/'
+            className='text-white transition hover:opacity-80'
+            aria-label='Back to home'
+          >
             <ArrowLeft size={22} />
           </Link>
+
           <h1 className='text-base font-bold tracking-wide'>
             {profile?.name || 'Profile'}
           </h1>
@@ -47,9 +70,11 @@ export default function MyProfilePage() {
           <div className='relative size-8 overflow-hidden rounded-full border border-white/10'>
             <Image
               src={profile.avatarUrl}
-              alt='Profile avatar'
+              alt={`${profile.name}'s avatar`}
               fill
               unoptimized
+              loading='eager'
+              sizes='80px'
               className='object-cover'
             />
           </div>
@@ -72,6 +97,7 @@ export default function MyProfilePage() {
               role='alert'
             >
               <p className='text-white/70'>Unable to load your profile.</p>
+
               <button
                 type='button'
                 onClick={() => refetch()}
@@ -91,6 +117,7 @@ export default function MyProfilePage() {
                       alt={`${profile.name}'s avatar`}
                       fill
                       unoptimized
+                      sizes='80px'
                       className='object-cover'
                     />
                   ) : (
@@ -100,15 +127,16 @@ export default function MyProfilePage() {
                   )}
                 </div>
 
-                <div>
+                <div className='min-w-0'>
                   <h2 className='text-lg font-bold text-white'>
                     {profile.name}
                   </h2>
+
                   <p className='text-sm text-white/50'>@{profile.username}</p>
                 </div>
               </div>
 
-              {/* Action Buttons (Full-Width di Mobile) */}
+              {/* Action Buttons */}
               <div className='mt-5 flex items-center gap-2.5'>
                 <Link
                   href='/updateProfile'
@@ -116,6 +144,7 @@ export default function MyProfilePage() {
                 >
                   Edit Profile
                 </Link>
+
                 <button
                   type='button'
                   className='flex size-9 shrink-0 items-center justify-center rounded-full border border-white/20 bg-transparent text-white transition hover:bg-white/10'
@@ -138,23 +167,29 @@ export default function MyProfilePage() {
                   <p className='text-base font-bold text-white'>
                     {stats.posts ?? 0}
                   </p>
-                  <p className='text-xs text-white/50'>Post</p>
+                  <p className='text-xs text-white/50'>Posts</p>
                 </div>
+
                 <div className='h-7 w-px bg-white/10' />
+
                 <div className='flex-1'>
                   <p className='text-base font-bold text-white'>
                     {stats.followers ?? 0}
                   </p>
                   <p className='text-xs text-white/50'>Followers</p>
                 </div>
+
                 <div className='h-7 w-px bg-white/10' />
+
                 <div className='flex-1'>
                   <p className='text-base font-bold text-white'>
                     {stats.following ?? 0}
                   </p>
                   <p className='text-xs text-white/50'>Following</p>
                 </div>
+
                 <div className='h-7 w-px bg-white/10' />
+
                 <div className='flex-1'>
                   <p className='text-base font-bold text-white'>
                     {stats.likes ?? 0}
@@ -168,7 +203,7 @@ export default function MyProfilePage() {
                 <button
                   type='button'
                   onClick={() => setActiveTab('gallery')}
-                  className={`flex flex-1 items-center justify-center gap-2 py-3 text-sm font-semibold transition border-b-2 ${
+                  className={`flex flex-1 items-center justify-center gap-2 border-b-2 py-3 text-sm font-semibold transition ${
                     activeTab === 'gallery'
                       ? 'border-white text-white'
                       : 'border-transparent text-white/40 hover:text-white/70'
@@ -177,10 +212,11 @@ export default function MyProfilePage() {
                   <Grid size={18} />
                   Gallery
                 </button>
+
                 <button
                   type='button'
                   onClick={() => setActiveTab('saved')}
-                  className={`flex flex-1 items-center justify-center gap-2 py-3 text-sm font-semibold transition border-b-2 ${
+                  className={`flex flex-1 items-center justify-center gap-2 border-b-2 py-3 text-sm font-semibold transition ${
                     activeTab === 'saved'
                       ? 'border-white text-white'
                       : 'border-transparent text-white/40 hover:text-white/70'
@@ -191,56 +227,141 @@ export default function MyProfilePage() {
                 </button>
               </div>
 
-              {/* Tab Content / Empty State */}
-              <div className='px-2 py-16 text-center'>
-                <h3 className='text-base font-semibold text-white'>
-                  Your story starts here
-                </h3>
-                <p className='mx-auto mt-2 max-w-xs text-xs text-white/50 leading-relaxed'>
-                  Share your first post and let the world see your moments,
-                  passions, and memories. Make this space truly yours.
-                </p>
+              {/* Gallery Tab */}
+              {activeTab === 'gallery' && (
+                <div className='pt-1'>
+                  {isPostsPending ? (
+                    <div
+                      className='flex min-h-48 items-center justify-center'
+                      aria-live='polite'
+                    >
+                      <LoaderCircle
+                        size={24}
+                        className='animate-spin text-white/60'
+                      />
+                    </div>
+                  ) : isPostsError ? (
+                    <div className='px-4 py-16 text-center'>
+                      <p className='text-sm text-white/60'>
+                        Unable to load your posts.
+                      </p>
 
-                <button
-                  type='button'
-                  className='mt-6 rounded-full bg-[#6C38FF] px-6 py-3 text-xs font-semibold text-white transition hover:bg-[#5a2ee0]'
-                >
-                  Upload My First Post
-                </button>
-              </div>
+                      <button
+                        type='button'
+                        onClick={() => refetchPosts()}
+                        className='mt-4 rounded-full bg-[#6936F2] px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-[#7F51F9]'
+                      >
+                        Try again
+                      </button>
+                    </div>
+                  ) : myPosts.length === 0 ? (
+                    <div className='px-2 py-16 text-center'>
+                      <h3 className='text-base font-semibold text-white'>
+                        Your story starts here
+                      </h3>
+
+                      <p className='mx-auto mt-2 max-w-xs text-xs leading-relaxed text-white/50'>
+                        Share your first post and let the world see your
+                        moments, passions, and memories. Make this space truly
+                        yours.
+                      </p>
+
+                      <Link
+                        href='/addPost'
+                        className='mt-6 inline-flex rounded-full bg-[#6C38FF] px-6 py-3 text-xs font-semibold text-white transition hover:bg-[#5a2ee0]'
+                      >
+                        Upload My First Post
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className='grid grid-cols-3 gap-0.5'>
+                      {myPosts.map((post) => (
+                        <div
+                          key={post.id}
+                          className='group relative aspect-square overflow-hidden bg-zinc-900'
+                        >
+                          <Image
+                            src={post.imageUrl}
+                            alt={post.caption || 'Post image'}
+                            fill
+                            unoptimized
+                            loading='eager'
+                            sizes='(max-width: 640px) 33vw, 200px'
+                            className='object-cover transition duration-300 group-hover:scale-105'
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Saved Tab */}
+              {activeTab === 'saved' && (
+                <div className='pt-1'>
+                  {isSavedPending ? (
+                    <div
+                      className='flex min-h-48 items-center justify-center'
+                      aria-live='polite'
+                    >
+                      <LoaderCircle
+                        size={24}
+                        className='animate-spin text-white/60'
+                      />
+                    </div>
+                  ) : isSavedError ? (
+                    <div className='px-4 py-16 text-center' role='alert'>
+                      <p className='text-sm text-white/60'>
+                        Unable to load saved posts.
+                      </p>
+
+                      <button
+                        type='button'
+                        onClick={() => refetchSavedPosts()}
+                        className='mt-4 rounded-full bg-[#6936F2] px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-[#7F51F9]'
+                      >
+                        Try again
+                      </button>
+                    </div>
+                  ) : savedPosts.length === 0 ? (
+                    <div className='px-2 py-16 text-center'>
+                      <Bookmark size={28} className='mx-auto text-white/40' />
+
+                      <h3 className='mt-4 text-base font-semibold text-white'>
+                        No saved posts yet
+                      </h3>
+
+                      <p className='mx-auto mt-2 max-w-xs text-xs leading-relaxed text-white/50'>
+                        Posts you save will appear here.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className='grid grid-cols-3 gap-0.5'>
+                      {savedPosts.map((post) => (
+                        <div
+                          key={post.id}
+                          className='group relative aspect-square overflow-hidden bg-zinc-900'
+                        >
+                          <Image
+                            src={post.imageUrl}
+                            alt={post.caption || 'Saved post'}
+                            fill
+                            unoptimized
+                            sizes='(max-width: 640px) 33vw, 200px'
+                            className='object-cover transition duration-300 group-hover:scale-105'
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </section>
       </Container>
 
-      {/* Floating Bottom Navigation Bar */}
-      <div className='fixed bottom-5 left-1/2 -translate-x-1/2 z-50 w-full max-w-xs px-4'>
-        <nav className='flex items-center justify-around rounded-full border border-white/10 bg-[#0E1117]/95 px-6 py-2.5 backdrop-blur-md shadow-2xl'>
-          <Link
-            href='/'
-            className='flex flex-col items-center gap-1 text-white/50 transition hover:text-white'
-          >
-            <Home size={18} />
-            <span className='text-[10px] font-medium'>Home</span>
-          </Link>
-
-          <button
-            type='button'
-            className='flex size-10 items-center justify-center rounded-full bg-[#6C38FF] text-white shadow-lg transition hover:bg-[#5a2ee0]'
-            aria-label='Create post'
-          >
-            <Plus size={20} />
-          </button>
-
-          <Link
-            href='/my-profile'
-            className='flex flex-col items-center gap-1 text-[#6C38FF]'
-          >
-            <User size={18} />
-            <span className='text-[10px] font-medium'>Profile</span>
-          </Link>
-        </nav>
-      </div>
+      <BottomNavbar />
     </main>
   );
 }

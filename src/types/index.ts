@@ -111,6 +111,34 @@ export type Post = {
 };
 
 /* ================================
+   COMMENTS
+================================ */
+
+export type CommentAuthor = {
+  id: number;
+  username: string;
+  name: string;
+  avatarUrl: string | null;
+};
+
+export type Comment = {
+  id: number;
+  text: string;
+  createdAt: string;
+  author: CommentAuthor;
+  isMine: boolean;
+};
+
+export type CreateCommentRequest = {
+  text: string;
+};
+
+export type CommentsData = {
+  comments: Comment[];
+  pagination: Pagination;
+};
+
+/* ================================
    PAGINATION
 ================================ */
 

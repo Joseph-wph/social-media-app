@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import localFont from 'next/font/local';
-
+import { Toaster } from '@/components/ui/sonner';
 import QueryProvider from '../provider/queryProvider';
 import { AuthHydration } from '../provider/authHydration';
 
@@ -51,7 +51,10 @@ export default function RootLayout({
     <html lang='en' className={sfPro.variable}>
       <body>
         <AuthHydration>
-          <QueryProvider>{children}</QueryProvider>
+          <QueryProvider>
+            {children}
+            <Toaster position='top-right' richColors />
+          </QueryProvider>
         </AuthHydration>
       </body>
     </html>
