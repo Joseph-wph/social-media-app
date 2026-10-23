@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { MessageCircle, RefreshCw } from 'lucide-react';
 
 import PostCard from '@/components/post/postCard';
@@ -34,26 +33,6 @@ export default function PostFeed({
 
   return (
     <section className='mx-auto w-full max-w-xl px-4 py-6 sm:py-8'>
-      {!token && (
-        <div className='mb-8 rounded-2xl border border-white/10 bg-[#0D1017] px-6 py-6 text-center'>
-          <div className='mt-5 flex justify-center gap-3'>
-            <Link
-              href='/login'
-              className='rounded-full bg-[#6C38FF] px-5 py-2.5 text-sm font-semibold transition hover:bg-[#5a2ee0]'
-            >
-              Log in
-            </Link>
-
-            <Link
-              href='/register'
-              className='rounded-full border border-white/20 px-5 py-2.5 text-sm font-semibold transition hover:bg-white/10'
-            >
-              Create account
-            </Link>
-          </div>
-        </div>
-      )}
-
       {isPending ? (
         <div className='space-y-6' aria-live='polite'>
           {[1, 2].map((item) => (

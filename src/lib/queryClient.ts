@@ -6,7 +6,7 @@ export function createQueryClient() {
       queries: {
         staleTime: 60_000,
         retry: 1,
-        refetchOnWindowFocus: false,
+        refetchOnWindowFocus: true,
       },
       mutations: {
         retry: 0,
