@@ -10,6 +10,7 @@ export function usePosts(page = 1, limit = 20) {
 
   return useQuery({
     queryKey: ['posts', token ? 'feed' : 'public', page, limit],
+
     queryFn: async () => {
       if (token) {
         const response = await getFeed(page, limit);
@@ -25,5 +26,9 @@ export function usePosts(page = 1, limit = 20) {
 
       return getPosts(page, limit);
     },
+
+    refetchInterval: token ? 15_000 : false,
+
+    refetchOnWindowFocus: 'always',
   });
 }
